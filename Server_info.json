@@ -1,0 +1,59 @@
+DEFAULT_SERVER_CONFIG = {
+    "server_name": "New Server",
+    "abbreviation": "NS",
+    "channels": {
+        "attendance": None,
+        "deployment_announcement": None,
+        "promotion": None,
+        "demotion": None
+    },
+    "roles": {
+        "deployment_perms": "Deployment Perms",
+        "mod_perms": ["Mod Perms", "Admin", "Staff"],
+        "xp_roles": {
+            "Guest": 0
+        }
+    },
+    "blacklist": [],
+    "deployment_settings": {
+        "max_xp_limit": 150,
+        "default_attendance_timeout": 300,
+        "default_end_countdown": 1800
+    },
+    "xp_data": {},
+    "protected_roles": []
+}
+
+{
+    "1359995388538523871": {
+        "server_name": "Moverton People's Alliance",
+        "abbreviation": "MPA",
+        "channels": {
+            "attendance": 1361789060968091788,
+            "deployment_announcement": 1360291648650744013,
+            "promotion": 1360304802579349611,
+            "demotion": 1360304851548114964
+        },
+        "roles": {
+            "deployment_perms": "Deployment Perms",
+            "mod_perms": ["Mod Perms", "Admin", "Staff"],
+            "xp_roles": {
+                "Initiate Party Member": 0,
+                "Party Member": 10,
+                "Active Party Member": 30,
+                "Senior Party Member": 50,
+                "Party Supervisor": 75,
+                "Lead Supervisor": 100,
+                "Lead Staff": 130
+            }
+        },
+        "blacklist": [],
+        "deployment_settings": {
+            "max_xp_limit": 150,
+            "default_attendance_timeout": 300,
+            "default_end_countdown": 1800
+        },
+        "xp_data": {},
+        "protected_roles": [1360663676574499039, 1360663865779814450, 1359996091285639178]  // Allows dynamic protection for specific roles
+    }
+}
