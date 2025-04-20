@@ -42,7 +42,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # Load all cogs dynamically
-COGS = ["cogs.Moderator", "cogs.XPSystem", "cogs.Blacklist", "cogs.Vote", "cogs.HelpCog", "cogs.AdminSettings", "cogs.Deployments"]
+COGS = ["cogs.Fundamentals", "cogs.Moderator", "cogs.XPSystem", "cogs.Blacklist", "cogs.Vote", "cogs.HelpCog", "cogs.AdminSettings", "cogs.Deployments", "cogs.MovGov"]
 
 async def load_cogs():
     """ Loads all bot cogs dynamically with error handling """
@@ -59,42 +59,11 @@ async def on_ready():
     await load_cogs()
     await bot.tree.sync()
 
-# Role permission checks
-def has_mod_perms(ctx):
-    """ Checks if user has mod permissions """
-    mod_roles = load_server_info().get(str(ctx.guild.id), {}).get("roles", {}).get("mod_perms", [])
-    return any(discord.utils.get(ctx.author.roles, name=role) for role in mod_roles) or ctx.author.guild_permissions.administrator
-
-def has_xp_perms(ctx):
-    """ Checks if user has XP permissions """
-    xp_roles = load_server_info().get(str(ctx.guild.id), {}).get("roles", {}).get("xp_perms", [])
-    return any(discord.utils.get(ctx.author.roles, name=role) for role in xp_roles)
-
 # Error Handling for Command Failures
 @bot.event
 async def on_command_error(ctx, error):
     await ctx.send(f"⚠️ Error: {error}")
     print(f"Error in {ctx.command}: {error}")
-
-@commands.command()
-async def update_tree(self, ctx):
-    """ Manually update the bot's command tree (Prefix Command) """
-    if not ctx.author.guild_permissions.administrator:
-        await ctx.send("⛔ You need **Administrator** permissions to update the command tree.")
-        return
-
-    await self.bot.tree.sync()
-    await ctx.send("✅ **Slash commands have been manually updated!**")
-
-@discord.app_commands.command(name="update_tree", description="Manually update the bot's command tree - Slash Command")
-async def update_tree(interaction: discord.Interaction):
-    """ Manually update the bot's command tree using a Slash Command """
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("⛔ You need **Administrator** permissions to update the command tree.", ephemeral=True)
-        return
-
-    await self.bot.tree.sync()
-    await interaction.response.send_message("✅ **Slash commands have been manually updated!**", ephemeral=True)
 
 def register_server(guild_id):
     """ Auto-registers new servers with default config if missing """
