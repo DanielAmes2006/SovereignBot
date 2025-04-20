@@ -39,7 +39,7 @@ import os
 
 # Initialize bot with command prefix
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # Load all cogs dynamically
 COGS = ["cogs.Moderator", "cogs.XPSystem", "cogs.Blacklist", "cogs.Vote", "cogs.HelpCog", "cogs.AdminSettings", "cogs.Deployments"]
