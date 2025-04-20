@@ -15,9 +15,9 @@ def load_server_info():
     return {}
 
 def get_server_setting(guild_id, setting):
-    """ Retrieves specific configuration setting for the guild """
+    """ Retrieves specific configuration setting for the guild, ensuring a valid dictionary """
     server_info = load_server_info()
-    return server_info.get(str(guild_id), {}).get(setting, None)
+    return server_info.get(str(guild_id), {}).get(setting, {})  # Returns {} instead of None
 
 class Deployments(commands.Cog):
     def __init__(self, bot):
