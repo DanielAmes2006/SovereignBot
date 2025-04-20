@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import json
 import os
 import asyncio
@@ -24,6 +25,8 @@ def save_server_info(data):
         json.dump(data, file, indent=4)
 
 class XPSystem(commands.Cog):
+    """ Handles XP tracking, role progression, and leaderboards """
+
     def __init__(self, bot):
         self.bot = bot
         self.user_xp = {}
@@ -33,25 +36,12 @@ class XPSystem(commands.Cog):
         xp_roles = get_server_setting(ctx.guild.id, "roles")["xp_perms"]
         return any(discord.utils.get(ctx.author.roles, name=role) for role in xp_roles)
 
-    def has_mod_perms(self, ctx):
-        """ Checks if the user has Moderator permissions """
-        mod_roles = get_server_setting(ctx.guild.id, "roles")["mod_perms"]
-        return any(discord.utils.get(ctx.author.roles, name=role) for role in mod_roles)
-
-    def save_data(self):
-        """ Saves XP data to JSON file """
-        with open("xp_data.json", "w") as file:
-            json.dump(self.user_xp, file, indent=4)
-
     @commands.command()
     async def xp_add(self, ctx, amount: int, *users: discord.Member):
         """ Adds XP to users (Requires XP Perms) """
         if not self.has_xp_perms(ctx):
             await ctx.send("⛔ You need the **XP Perms** role to use this command.")
             return
-
-        log_channel_id = get_server_setting(ctx.guild.id, "channels")["logs"]
-        log_channel = self.bot.get_channel(log_channel_id)
 
         for user in users:
             user_id = str(user.id)
@@ -60,11 +50,15 @@ class XPSystem(commands.Cog):
 
             await self.update_roles(ctx, user, previous_xp)
 
-            if log_channel:
-                await log_channel.send(f"📜 **{ctx.author.display_name}** added **{amount} XP** to **{user.display_name}**.")
-
-        self.save_data()
+        save_server_info(self.user_xp)
         await ctx.send(f"✅ Added {amount} XP to eligible users!")
+
+    @app_commands.command(name="xp_add", description="Adds XP to specified users")
+    async def xp_add_slash(self, interaction: discord.Interaction, amount: int, users: discord.Member):
+        """ Calls xp_add via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.xp_add, amount, users)
+        await interaction.response.send_message(f"✅ Added {amount} XP!", ephemeral=True)
 
     @commands.command()
     async def xp_view(self, ctx, user: discord.Member = None):
@@ -73,15 +67,19 @@ class XPSystem(commands.Cog):
         xp = self.user_xp.get(str(user.id), 0)
         await ctx.send(f"{user.display_name} has {xp} XP!")
 
+    @app_commands.command(name="xp_view", description="View XP of a user")
+    async def xp_view_slash(self, interaction: discord.Interaction, user: discord.Member = None):
+        """ Calls xp_view via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.xp_view, user)
+        await interaction.response.send_message(f"✅ Viewing XP for {user.display_name}!", ephemeral=True)
+
     @commands.command()
-    async def xp_set(self, ctx, user: discord.Member, amount: int, *, reason: str = None):
+    async def xp_set(self, ctx, user: discord.Member, amount: int):
         """ Set XP for a user """
         if not self.has_xp_perms(ctx):
             await ctx.send("⛔ You need the **XP Perms** role to use this command.")
             return
-
-        log_channel_id = get_server_setting(ctx.guild.id, "channels")["logs"]
-        log_channel = self.bot.get_channel(log_channel_id)
 
         user_id = str(user.id)
         previous_xp = self.user_xp.get(user_id, 0)
@@ -89,11 +87,15 @@ class XPSystem(commands.Cog):
 
         await self.update_roles(ctx, user, previous_xp)
 
-        if log_channel:
-            await log_channel.send(f"📜 **{ctx.author.display_name}** set XP for **{user.display_name}** to **{amount}**.")
-
-        self.save_data()
+        save_server_info(self.user_xp)
         await ctx.send(f"✅ Set {user.display_name}'s XP to {amount}!")
+
+    @app_commands.command(name="xp_set", description="Set XP for a user")
+    async def xp_set_slash(self, interaction: discord.Interaction, user: discord.Member, amount: int):
+        """ Calls xp_set via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.xp_set, user, amount)
+        await interaction.response.send_message(f"✅ Set XP for {user.display_name} to {amount}!", ephemeral=True)
 
     @commands.command()
     async def leaderboard(self, ctx):
@@ -101,49 +103,21 @@ class XPSystem(commands.Cog):
         sorted_xp = sorted(self.user_xp.items(), key=lambda x: x[1], reverse=True)
         leaderboard_entries = [f"{await self.bot.fetch_user(int(user_id))} - {xp} XP" for user_id, xp in sorted_xp]
 
-        per_page = 10
-        total_pages = (len(leaderboard_entries) + per_page - 1) // per_page
-        current_page = 0
+        embed = discord.Embed(title="🏆 **Leaderboard**", description="\n".join(leaderboard_entries[:10]), color=discord.Color.blue())
+        await ctx.send(embed=embed)
 
-        async def update_leaderboard(page):
-            start_index = page * per_page
-            embed = discord.Embed(title="🏆 **Leaderboard**", description="\n".join(leaderboard_entries[start_index:start_index + per_page]), color=discord.Color.blue())
-            embed.set_footer(text=f"Page {page + 1} of {total_pages}")
-            return embed
-
-        message = await ctx.send(embed=await update_leaderboard(current_page))
-
-        if total_pages > 1:
-            await message.add_reaction("⬅️")
-            await message.add_reaction("➡️")
-
-            def check(reaction, user):
-                return user == ctx.author and reaction.message.id == message.id and reaction.emoji in ["⬅️", "➡️"]
-
-            while True:
-                try:
-                    reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-
-                    if reaction.emoji == "⬅️" and current_page > 0:
-                        current_page -= 1
-                    elif reaction.emoji == "➡️" and current_page < total_pages - 1:
-                        current_page += 1
-
-                    await message.edit(embed=await update_leaderboard(current_page))
-                    await message.remove_reaction(reaction.emoji, user)
-
-                except asyncio.TimeoutError:
-                    break
+    @app_commands.command(name="leaderboard", description="Displays XP leaderboard")
+    async def leaderboard_slash(self, interaction: discord.Interaction):
+        """ Calls leaderboard via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.leaderboard)
+        await interaction.response.send_message("✅ Fetching leaderboard!", ephemeral=True)
 
     async def update_roles(self, ctx, user, previous_xp):
         """ Assigns roles strictly by progression, removes previous ranks, and ensures XP announcements """
         role_thresholds = get_server_setting(ctx.guild.id, "roles")["xp_roles"]
-        promotion_channel = self.bot.get_channel(get_server_setting(ctx.guild.id, "channels")["promotion"])
-        demotion_channel = self.bot.get_channel(get_server_setting(ctx.guild.id, "channels")["demotion"])
-
         user_id = str(user.id)
         current_xp = self.user_xp.get(user_id, 0)
-
         previous_role = None
 
         for role_name, required_xp in role_thresholds.items():
@@ -152,15 +126,11 @@ class XPSystem(commands.Cog):
             if role:
                 if previous_xp < required_xp <= current_xp:
                     await user.add_roles(role)
-                    if promotion_channel:
-                        await promotion_channel.send(f"🎉 **{user.display_name}** has been promoted to **{role_name}**!")
 
                 if previous_role:
                     old_role = discord.utils.get(ctx.guild.roles, name=previous_role)
                     if old_role and old_role in user.roles:
                         await user.remove_roles(old_role)
-                        if demotion_channel:
-                            await demotion_channel.send(f"❌ **{user.display_name}** has been demoted from **{previous_role}**.")
 
             previous_role = role_name
 
