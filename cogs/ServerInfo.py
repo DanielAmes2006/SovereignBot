@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import json
 import os
 
@@ -18,12 +19,14 @@ def get_server_setting(guild_id, setting):
     return server_info.get(str(guild_id), {}).get(setting, None)
 
 class ServerInfo(commands.Cog):
+    """ Displays server configuration details """
+
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(name="server_info")
     async def server_info(self, ctx):
-        """ Displays the server's full name, abbreviation, and key settings """
+        """ Displays the server's full name, abbreviation, and key settings (Prefix Command) """
         guild_id = ctx.guild.id
         server_name = get_server_setting(guild_id, "server_name")
         abbreviation = get_server_setting(guild_id, "abbreviation")
@@ -44,6 +47,13 @@ class ServerInfo(commands.Cog):
             embed.add_field(name="🎭 Roles", value="\n".join([f"**{name}:** `{role}`" for name, role in roles.items()]), inline=False)
 
         await ctx.send(embed=embed)
+
+    @app_commands.command(name="server_info", description="Displays server configuration details")
+    async def server_info_slash(self, interaction: discord.Interaction):
+        """ Calls the original server_info command via slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.server_info)
+        await interaction.response.send_message("✅ Server info requested!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ServerInfo(bot))
