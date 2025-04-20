@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import json
 import os
 
@@ -18,26 +19,11 @@ def get_server_setting(guild_id, setting):
     return server_info.get(str(guild_id), {}).get(setting, None)
 
 class Moderation(commands.Cog):
+    """ Handles moderation commands for server management """
+    
     def __init__(self, bot):
         self.bot = bot
         self.warnings = {}  # Store warnings per server
-
-    def get_warnings_file(self, guild_id):
-        return f"warnings_{guild_id}.json"
-
-    def load_warnings(self, guild_id):
-        """ Loads warnings from JSON file per server """
-        warnings_file = self.get_warnings_file(guild_id)
-        if os.path.exists(warnings_file):
-            with open(warnings_file, "r") as file:
-                return json.load(file)
-        return {}
-
-    def save_warnings(self, guild_id, warnings_data):
-        """ Saves warnings to the correct JSON file per server """
-        warnings_file = self.get_warnings_file(guild_id)
-        with open(warnings_file, "w") as file:
-            json.dump(warnings_data, file)
 
     def has_mod_perms(self, ctx):
         """ Checks if the user has Moderator role dynamically from JSON """
@@ -50,80 +36,26 @@ class Moderation(commands.Cog):
         if not self.has_mod_perms(ctx):
             await ctx.send("⛔ You need the **Mod Perms** role to use this command.")
             return
-
+        
         guild_id = ctx.guild.id
-        warnings = self.load_warnings(guild_id)
+        warnings = load_server_info()
         user_id = str(member.id)
 
         if user_id not in warnings:
             warnings[user_id] = []
 
         warnings[user_id].append({"reason": reason, "moderator": ctx.author.name})
-        self.save_warnings(guild_id, warnings)
+        with open(SERVER_INFO_FILE, "w") as file:
+            json.dump(warnings, file)
 
         await ctx.send(f"⚠️ {member.mention} has been warned for: {reason}")
 
-    @commands.command()
-    async def view_warnings(self, ctx, member: discord.Member):
-        """ Show warnings specific to this server """
-        if not self.has_mod_perms(ctx):
-            await ctx.send("⛔ You need the **Mod Perms** role to use this command.")
-            return
-
-        guild_id = ctx.guild.id
-        warnings = self.load_warnings(guild_id)
-
-        if str(member.id) not in warnings or len(warnings[str(member.id)]) == 0:
-            await ctx.send(f"{member.mention} has no warnings.")
-            return
-
-        embed = discord.Embed(title=f"Warnings for {member.name}", color=discord.Color.orange())
-        for idx, warning in enumerate(warnings[str(member.id)], start=1):
-            embed.add_field(name=f"Warning {idx}", value=f"Reason: {warning['reason']} | Moderator: {warning['moderator']}", inline=False)
-
-        await ctx.send(embed=embed)
-
-    @commands.command()
-    async def clear_warnings(self, ctx, member: discord.Member):
-        """ Clears all warnings for a user in this server """
-        if not self.has_mod_perms(ctx):
-            await ctx.send("⛔ You need the **Mod Perms** role to use this command.")
-            return
-
-        guild_id = ctx.guild.id
-        warnings = self.load_warnings(guild_id)
-
-        if str(member.id) not in warnings or len(warnings[str(member.id)]) == 0:
-            await ctx.send(f"{member.mention} has no warnings to clear.")
-            return
-
-        warnings[str(member.id)] = []
-        self.save_warnings(guild_id, warnings)
-
-        await ctx.send(f"✅ All warnings for {member.mention} have been cleared.")
-
-    @commands.command()
-    async def clear_warning(self, ctx, member: discord.Member, warning_index: int):
-        """ Clears a specific warning from the user """
-        if not self.has_mod_perms(ctx):
-            await ctx.send("⛔ You need the **Mod Perms** role to use this command.")
-            return
-
-        guild_id = ctx.guild.id
-        warnings = self.load_warnings(guild_id)
-
-        if str(member.id) not in warnings or len(warnings[str(member.id)]) == 0:
-            await ctx.send(f"{member.mention} has no warnings to clear.")
-            return
-
-        if warning_index < 1 or warning_index > len(warnings[str(member.id)]):
-            await ctx.send(f"⚠️ Invalid warning index. {member.mention} only has {len(warnings[str(member.id)])} warnings.")
-            return
-
-        removed_warning = warnings[str(member.id)].pop(warning_index - 1)
-        self.save_warnings(guild_id, warnings)
-
-        await ctx.send(f"✅ Cleared warning {warning_index} for {member.mention}: Reason: {removed_warning['reason']}")
+    @app_commands.command(name="warn", description="Warn a user in the server")
+    async def warn_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+        """ Calls the warn command via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.warn, member=member, reason=reason)
+        await interaction.response.send_message(f"⚠️ Warned {member.mention}: {reason}", ephemeral=True)
 
     @commands.command()
     async def kick(self, ctx, member: discord.Member, *, reason=None):
@@ -135,6 +67,13 @@ class Moderation(commands.Cog):
         await member.kick(reason=reason)
         await ctx.send(f"👢 **{member.mention} has been kicked!** Reason: {reason}")
 
+    @app_commands.command(name="kick", description="Kick a user from the server")
+    async def kick_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+        """ Calls the kick command via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.kick, member=member, reason=reason)
+        await interaction.response.send_message(f"👢 Kicked {member.mention} for: {reason}", ephemeral=True)
+
     @commands.command()
     async def ban(self, ctx, member: discord.Member, *, reason=None):
         """ Ban a user from the server """
@@ -144,6 +83,13 @@ class Moderation(commands.Cog):
 
         await member.ban(reason=reason)
         await ctx.send(f"🔨 **{member.mention} has been banned!** Reason: {reason}")
+
+    @app_commands.command(name="ban", description="Ban a user from the server")
+    async def ban_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+        """ Calls the ban command via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.ban, member=member, reason=reason)
+        await interaction.response.send_message(f"🔨 Banned {member.mention} for: {reason}", ephemeral=True)
 
     @commands.command()
     async def mute(self, ctx, member: discord.Member):
@@ -160,6 +106,13 @@ class Moderation(commands.Cog):
         await member.add_roles(muted_role)
         await ctx.send(f"🔇 **{member.mention} has been muted!**")
 
+    @app_commands.command(name="mute", description="Mute a user in the server")
+    async def mute_slash(self, interaction: discord.Interaction, member: discord.Member):
+        """ Calls the mute command via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.mute, member=member)
+        await interaction.response.send_message(f"🔇 Muted {member.mention}!", ephemeral=True)
+
     @commands.command()
     async def clear(self, ctx, amount: int):
         """ Deletes a number of messages """
@@ -169,6 +122,13 @@ class Moderation(commands.Cog):
 
         await ctx.channel.purge(limit=amount + 1)
         await ctx.send(f"🧹 Cleared {amount} messages!", delete_after=3)
+
+    @app_commands.command(name="clear", description="Delete messages in the current channel")
+    async def clear_slash(self, interaction: discord.Interaction, amount: int):
+        """ Calls the clear command via a slash command """
+        ctx = await commands.Context.from_interaction(interaction)
+        await ctx.invoke(self.clear, amount=amount)
+        await interaction.response.send_message(f"🧹 Cleared {amount} messages!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
