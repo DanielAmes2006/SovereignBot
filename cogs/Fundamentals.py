@@ -13,10 +13,16 @@ def load_server_info():
             return json.load(file)
     return {}
 
-def get_server_setting(guild_id, setting):
-    """ Retrieves specific configuration setting for the guild """
+def get_server_setting(guild_id, setting, default=None):
+    """ Safely retrieves a configuration setting for the guild """
     server_info = load_server_info()
-    return server_info.get(str(guild_id), {}).get(setting, None)
+    guild_data = server_info.get(str(guild_id), {})
+
+    # Debugging: Print what’s actually being found
+    print(f"🔍 Searching JSON for server {guild_id}")
+    print(f"🔍 Retrieved Data: {guild_data}")
+
+    return guild_data.get(setting, default)
 
 class Fundamentals(commands.Cog):
     """ Handles essential bot permissions and admin utilities """
