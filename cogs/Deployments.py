@@ -16,6 +16,7 @@ def load_server_info():
 
 def get_server_setting(guild_id, setting, default={}):
     """ Safely retrieves a configuration setting for the guild """
+    print(f"🔍 Bot detected server ID: {ctx.guild.id}")
     server_info = load_server_info()
     guild_data = server_info.get(str(guild_id), {})
 
