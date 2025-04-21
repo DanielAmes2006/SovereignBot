@@ -14,7 +14,7 @@ def load_server_info():
             return json.load(file)
     return {}
 
-def get_server_setting(guild_id, setting, default=None):
+def get_server_setting(guild_id, setting, default={}):
     """ Safely retrieves a configuration setting for the guild """
     server_info = load_server_info()
     guild_data = server_info.get(str(guild_id), {})
