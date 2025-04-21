@@ -5,7 +5,7 @@ import json
 import os
 import asyncio
 
-SERVER_INFO_FILE = "server_info.json"
+SERVER_INFO_FILE = os.path.join(os.path.dirname(__file__), "..", "server_info.json")
 
 def load_server_info():
     """ Loads server configuration from JSON file """
