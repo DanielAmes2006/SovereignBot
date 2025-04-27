@@ -25,6 +25,26 @@ def get_server_setting(guild_id, setting, default=None):
 
     return guild_data.get(setting, default)
 
+@commands.command()
+async def xp_set_perms(self, ctx, *roles: discord.Role):
+    """ Sets roles with XP permissions """
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("⛔ You need **Administrator** permissions to use this command.")
+        return
+    
+    server_info = load_server_info()
+    guild_id = str(ctx.guild.id)
+    
+    # Ensure the guild has data initialized
+    if guild_id not in server_info:
+        server_info[guild_id] = {"roles": {"xp_perms": []}}
+    
+    xp_roles = [role.name for role in roles]
+    server_info[guild_id]["roles"]["xp_perms"] = xp_roles
+    
+    save_server_info(server_info)
+    await ctx.send(f"✅ Set XP Perms roles to: {', '.join(xp_roles)}")
+
 def save_server_info(data):
     """ Saves updated server configuration to JSON file """
     with open(SERVER_INFO_FILE, "w") as file:
