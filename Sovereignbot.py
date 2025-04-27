@@ -86,6 +86,13 @@ async def on_guild_join(guild):
     """ Registers new servers dynamically when they join """
     register_server(guild.id)
     print(f"🔹 Auto-registered server: {guild.name} ({guild.id})")
+    """ Automatically sets up the Sovereign Perms role for new servers """
+    sovereign_role = discord.utils.get(guild.roles, name="Sovereign Perms")
+    if not sovereign_role:
+        await guild.create_role(
+            name="Sovereign Perms",
+            reason="Automatic creation of Sovereign Perms role"
+        )
 
 SERVER_INFO_FILE = "server_info.json"
 
