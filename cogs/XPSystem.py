@@ -113,7 +113,7 @@ class XPSystem(commands.Cog):
         xp_roles = [role.name for role in roles]
         server_info[guild_id]["roles"]["xp_perms"] = xp_roles
         
-        save_server_info(server_info)
+        save_xp_data(server_info)
         await ctx.send(f"✅ Set XP Perms roles to: {', '.join(xp_roles)}")
 
 async def setup(bot):
