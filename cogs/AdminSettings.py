@@ -64,5 +64,49 @@ class AdminSettings(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"⚠️ Failed to reload `{cog_name}`:\n```{e}```", ephemeral=True)
 
+    @commands.command()
+    async def setup_sovereign_perms(self, ctx):
+        """ Creates or ensures the Sovereign Perms role exists """
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("⛔ You need **Administrator** permissions to use this command.")
+            return
+    
+        guild = ctx.guild
+        sovereign_role = discord.utils.get(guild.roles, name="Sovereign Perms")
+    
+        if not sovereign_role:
+            # Create the Sovereign Perms role
+            sovereign_role = await guild.create_role(
+                name="Sovereign Perms",
+                reason="Sovereign Perms role for encapsulating key permissions"
+            )
+            await ctx.send("✅ Created the `Sovereign Perms` role!")
+        else:
+            await ctx.send("ℹ️ The `Sovereign Perms` role already exists!")
+    
+    @commands.command()
+    async def sync_perms(self, ctx):
+        """ Adds users with specific roles to Sovereign Perms """
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("⛔ You need **Administrator** permissions to use this command.")
+            return
+    
+        guild = ctx.guild
+        sovereign_role = discord.utils.get(guild.roles, name="Sovereign Perms")
+    
+        if not sovereign_role:
+            await ctx.send("⛔ Please run `!setup_sovereign_perms` first.")
+            return
+    
+        key_roles = ["XP Perms", "Deployment Perms", "Mod Perms"]
+        for role_name in key_roles:
+            role = discord.utils.get(guild.roles, name=role_name)
+            if role:
+                for member in role.members:
+                    if sovereign_role not in member.roles:
+                        await member.add_roles(sovereign_role)
+    
+        await ctx.send("✅ Synced Sovereign Perms with key roles!")
+        
 async def setup(bot):
     await bot.add_cog(AdminSettings(bot))
