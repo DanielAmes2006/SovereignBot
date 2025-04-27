@@ -103,7 +103,7 @@ class XPSystem(commands.Cog):
             await ctx.send("⛔ You need **Administrator** permissions to use this command.")
             return
         
-        server_info = load_server_info()
+        server_info = load_xp_info()
         guild_id = str(ctx.guild.id)
         
         # Ensure the guild has data initialized
