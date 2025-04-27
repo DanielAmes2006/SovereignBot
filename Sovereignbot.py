@@ -42,7 +42,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # Load all cogs dynamically
-COGS = ["cogs.Fundamentals", "cogs.Moderator", "cogs.XPSystem", "cogs.Blacklist", "cogs.Vote", "cogs.HelpCog", "cogs.AdminSettings", "cogs.Deployments", "cogs.MovGov"]
+COGS = ["cogs.Fundamentals", "cogs.Moderator", "cogs.XPSystem", "cogs.Blacklist", "cogs.Vote", "cogs.HelpCog", "cogs.AdminSettings", "cogs.Deployments", "cogs.MovGov", "cogs.Announcements"]
 
 async def load_cogs():
     """ Loads all bot cogs dynamically with error handling """
