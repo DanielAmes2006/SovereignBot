@@ -96,5 +96,25 @@ class XPSystem(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @commands.command()
+    async def xp_set_perms(self, ctx, *roles: discord.Role):
+        """ Sets roles with XP permissions """
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("⛔ You need **Administrator** permissions to use this command.")
+            return
+        
+        server_info = load_server_info()
+        guild_id = str(ctx.guild.id)
+        
+        # Ensure the guild has data initialized
+        if guild_id not in server_info:
+            server_info[guild_id] = {"roles": {"xp_perms": []}}
+        
+        xp_roles = [role.name for role in roles]
+        server_info[guild_id]["roles"]["xp_perms"] = xp_roles
+        
+        save_server_info(server_info)
+        await ctx.send(f"✅ Set XP Perms roles to: {', '.join(xp_roles)}")
+
 async def setup(bot):
     await bot.add_cog(XPSystem(bot))
