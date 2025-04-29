@@ -81,7 +81,7 @@ class Vote(commands.Cog):
             if status != "ongoing":
                 result_embed = discord.Embed(
                     title=f"🗳 **Vote {'Passed' if status == 'passed' else 'Failed'}**",
-                    description=f"Aye: {tally['Aye']}\nNay: {tally['Nay']}\nAbstain: {tally['Abstain']}",
+                    description=f"**Topic:** {question}\n\n**Results:**\nAye: {tally['Aye']}\nNay: {tally['Nay']}\nAbstain: {tally['Abstain']}",
                     color=discord.Color.green() if status == "passed" else discord.Color.red()
                 )
                 await channel.send(embed=result_embed)
