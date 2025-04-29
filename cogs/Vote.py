@@ -1,139 +1,89 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
-import os
-
-SERVER_INFO_FILE = os.path.expanduser("~/SovereignBot/Server_info.json")
-
-def load_server_info():
-    """ Loads server configuration from JSON file """
-    if os.path.exists(SERVER_INFO_FILE):
-        with open(SERVER_INFO_FILE, "r") as file:
-            return json.load(file)
-    return {}
-
-def get_server_setting(guild_id, setting, default=None):
-    """ Safely retrieves a configuration setting for the guild """
-    server_info = load_server_info()
-    guild_data = server_info.get(str(guild_id), {})
-
-    # Debugging: Print what’s actually being found
-    print(f"🔍 Searching JSON for server {guild_id}")
-    print(f"🔍 Retrieved Data: {guild_data}")
-
-    return guild_data.get(setting, default)
-
-def save_server_info(data):
-    """ Saves updated server configuration to JSON file """
-    with open(SERVER_INFO_FILE, "w") as file:
-        json.dump(data, file, indent=4)
+import asyncio
 
 class Vote(commands.Cog):
-    """ Handles automated voting systems for forums """
+    """ Handles automated voting systems with enhanced functionality """
 
     def __init__(self, bot):
         self.bot = bot
         self.active_votes = {}  # Tracks ongoing votes
 
-    @commands.command()
-    async def add_voting_forum(self, ctx, channel: discord.TextChannel):
-        """ Adds a voting forum dynamically (Prefix Command) """
-        if not ctx.author.guild_permissions.administrator:
-            await ctx.send("⛔ You need Administrator permissions to modify voting forums.")
-            return
+    async def count_votes(self, vote_message, required_votes, double_vote_role):
+        """Count votes and determine the outcome."""
+        message = await vote_message.channel.fetch_message(vote_message.id)
+        reactions = message.reactions
+        voters = set()
 
-        guild_id = str(ctx.guild.id)
-        server_info = load_server_info()
+        tally = {"Aye": 0, "Nay": 0, "Abstain": 0}
 
-        if guild_id not in server_info:
-            server_info[guild_id] = {"voting_forums": []}
+        for reaction in reactions:
+            async for user in reaction.users():
+                if user.bot:
+                    continue
 
-        voting_forums = server_info[guild_id].get("voting_forums", [])
-        
-        if channel.id in voting_forums:
-            await ctx.send(f"⚠️ **{channel.name}** is already a voting forum.")
-            return
+                if user.id in voters:
+                    continue  # Prevent double-counting votes across multiple reactions
 
-        voting_forums.append(channel.id)
-        server_info[guild_id]["voting_forums"] = voting_forforums
-        save_server_info(server_info)
+                voters.add(user.id)
+                multiplier = 2 if double_vote_role in [role.id for role in user.roles] else 1
 
-        await ctx.send(f"✅ **{channel.name}** has been added as a voting forum!")
+                if reaction.emoji == "👍":
+                    tally["Aye"] += multiplier
+                elif reaction.emoji == "👎":
+                    tally["Nay"] += multiplier
+                elif reaction.emoji == "🟡":
+                    tally["Abstain"] += multiplier
 
-    @app_commands.command(name="add_voting_forum", description="Adds a voting forum dynamically")
-    async def slash_add_voting_forum(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        """ Calls the existing add_voting_forum command via a slash command """
-        ctx = await commands.Context.from_interaction(interaction)
-        await ctx.invoke(self.add_voting_forum, channel)
-        await interaction.response.send_message(f"✅ Added {channel.mention} as a voting forum!", ephemeral=True)
+        # Check for the threshold
+        if tally["Aye"] >= required_votes:
+            return "passed", tally
+        elif tally["Nay"] >= required_votes:
+            return "failed", tally
 
-    @commands.command()
-    async def remove_voting_forum(self, ctx, channel: discord.TextChannel):
-        """ Removes a voting forum dynamically (Prefix Command) """
-        if not ctx.author.guild_permissions.administrator:
-            await ctx.send("⛔ You need Administrator permissions to modify voting forums.")
-            return
+        return "ongoing", tally
 
-        guild_id = str(ctx.guild.id)
-        server_info = load_server_info()
+    @app_commands.command(name="create_vote", description="Starts a structured vote")
+    async def create_vote(self, interaction: discord.Interaction, channel: discord.TextChannel, question: str, required_votes: int):
+        """ Starts a vote and monitors its progress """
+        double_vote_role = discord.utils.get(interaction.guild.roles, name="Double Vote")  # Example role name
 
-        voting_forums = server_info[guild_id].get("voting_forums", [])
+        embed = discord.Embed(
+            title="🗳 **Vote Started**",
+            description=f"{question}\n\nReact below:\n👍 Aye\n👎 Nay\n🟡 Abstain",
+            color=discord.Color.blue()
+        )
+        message = await channel.send(embed=embed)
+        for emoji in ["👍", "👎", "🟡"]:
+            await message.add_reaction(emoji)
 
-        if channel.id not in voting_forums:
-            await ctx.send(f"⚠️ **{channel.name}** is not set as a voting forum.")
-            return
+        self.active_votes[message.id] = {"question": question, "required_votes": required_votes, "message": message}
 
-        voting_forums.remove(channel.id)
-        server_info[guild_id]["voting_forums"] = voting_forums
-        save_server_info(server_info)
+        # Monitor vote progress
+        while True:
+            status, tally = await self.count_votes(message, required_votes, double_vote_role)
+            if status != "ongoing":
+                result_embed = discord.Embed(
+                    title=f"🗳 **Vote {'Passed' if status == 'passed' else 'Failed'}**",
+                    description=f"Aye: {tally['Aye']}\nNay: {tally['Nay']}\nAbstain: {tally['Abstain']}",
+                    color=discord.Color.green() if status == "passed" else discord.Color.red()
+                )
+                await channel.send(embed=result_embed)
+                del self.active_votes[message.id]
+                break
 
-        await ctx.send(f"✅ **{channel.name}** has been removed from the voting forums.")
+            await asyncio.sleep(10)  # Check the votes every 10 seconds
 
-    @app_commands.command(name="remove_voting_forum", description="Removes a voting forum dynamically")
-    async def slash_remove_voting_forum(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        """ Calls the existing remove_voting_forum command via a slash command """
-        ctx = await commands.Context.from_interaction(interaction)
-        await ctx.invoke(self.remove_voting_forum, channel)
-        await interaction.response.send_message(f"✅ Removed {channel.mention} from voting forums!", ephemeral=True)
+    @commands.command(name="add_double_vote")
+    async def add_double_vote(self, ctx, user: discord.Member):
+        """Assigns the Double Vote role to a user."""
+        role = discord.utils.get(ctx.guild.roles, name="Double Vote")
+        if not role:
+            role = await ctx.guild.create_role(name="Double Vote", color=discord.Color.gold())
 
-    @commands.command()
-    async def list_voting_forums(self, ctx):
-        """ Lists all active voting forums (Prefix Command) """
-        guild_id = str(ctx.guild.id)
-        voting_forums = get_server_setting(ctx.guild.id, "voting_forums") or []
-
-        if not voting_forums:
-            await ctx.send("⚠️ No voting forums are set for this server.")
-            return
-
-        channels = [f"<#{forum_id}>" for forum_id in voting_forums]
-        embed = discord.Embed(title="🗳 **Voting Forums**", description="\n".join(channels), color=discord.Color.green())
-        await ctx.send(embed=embed)
-
-    @app_commands.command(name="list_voting_forums", description="Lists all active voting forums")
-    async def slash_list_voting_forums(self, interaction: discord.Interaction):
-        """ Calls the existing list_voting_forums command via a slash command """
-        ctx = await commands.Context.from_interaction(interaction)
-        await ctx.invoke(self.list_voting_forums)
-        await interaction.response.send_message("✅ Listing voting forums!", ephemeral=True)
-
-    @app_commands.command(name="create_vote", description="Starts a vote in a specified channel")
-    async def create_vote(self, interaction: discord.Interaction, channel: discord.TextChannel, role: discord.Role, required_votes: int, question: str):
-        """ Creates a voting session """
-        embed = discord.Embed(title="🗳 **Vote Started**", description=f"{question}\n\nReact below to vote!", color=discord.Color.blue())
-        message = await channel.send(f"{role.mention}", embed=embed)
-        await message.add_reaction("👍")
-        await message.add_reaction("👎")
-
-        self.active_votes[message.id] = {
-            "channel": channel.id,
-            "required_votes": required_votes,
-            "yes_votes": 0,
-            "no_votes": 0,
-            "message": message
-        }
-        await interaction.response.send_message(f"✅ Vote created in {channel.mention}!", ephemeral=True)
+        await user.add_roles(role)
+        await ctx.send(f"✅ {user.mention} now has the Double Vote role!")
 
 async def setup(bot):
     await bot.add_cog(Vote(bot))
