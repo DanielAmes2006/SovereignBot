@@ -107,6 +107,31 @@ class AdminSettings(commands.Cog):
                         await member.add_roles(sovereign_role)
     
         await ctx.send("✅ Synced Sovereign Perms with key roles!")
+
+    @commands.command(name="load_module")
+    @commands.has_permissions(administrator=True)
+    async def load_module_text(self, ctx, cog_name: str):
+        """Loads a new module dynamically (Prefix Command)"""
+        cog_path = f"cogs.{cog_name}"
+        try:
+            await self.bot.load_extension(cog_path)
+            await ctx.send(f"✅ **Loaded `{cog_name}` successfully!**")
+        except Exception as e:
+            await ctx.send(f"⚠️ Failed to load `{cog_name}`:\n```{e}```")
+
+    @app_commands.command(name="load_module", description="Loads a new module dynamically")
+    async def load_module_slash(self, interaction: discord.Interaction, cog_name: str):
+        """Loads a new module dynamically (Slash Command)"""
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("⛔ You need **Administrator** permissions to load modules.", ephemeral=True)
+            return
+
+        cog_path = f"cogs.{cog_name}"
+        try:
+            await interaction.client.load_extension(cog_path)
+            await interaction.response.send_message(f"✅ **Loaded `{cog_name}` successfully!**", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"⚠️ Failed to load `{cog_name}`:\n```{e}```", ephemeral=True)
         
 async def setup(bot):
     await bot.add_cog(AdminSettings(bot))
