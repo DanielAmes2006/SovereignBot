@@ -47,10 +47,10 @@ class VoteView(discord.ui.View):
         color = discord.Color.red() if timeout else discord.Color.green()
 
         embed = discord.Embed(
-            title="🗳 **Vote Ended**",
-            description=f"**Topic:** {self.question}\n\n{result_text}\n\n**Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
-            color=color
-        )
+        title="🗳 **Vote Ended**",
+        description=f"**Topic:** {self.question}\n\n✅ **Final Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
+        color=discord.Color.green()
+    )
 
         await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
         del self.cog.active_votes[self.vote_id]
@@ -95,12 +95,24 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Core logic for starting an anonymous vote."""
-        embed = discord.Embed(
-            title="🗳 **Anonymous Vote Started**",
-            description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
-            color=discord.Color.blue()
-        )
+    """Starts an anonymous vote with the topic displayed."""
+    embed = discord.Embed(
+        title="🗳 **Anonymous Vote Started**",
+        description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
+        color=discord.Color.blue()
+    )
+
+    view = VoteView(len(self.active_votes) + 1, question, required_votes, max_votes, self)
+    message = await channel.send(embed=embed, view=view)
+
+    self.active_votes[message.id] = {
+        "question": question,  # Ensuring question is stored correctly
+        "required_votes": required_votes,
+        "max_votes": max_votes,
+        "message": message,
+        "view": view,
+        "end_time": datetime.datetime.utcnow() + datetime.timedelta(days=3)
+    }
 
         view = VoteView(len(self.active_votes) + 1, required_votes, max_votes, question, self)
         message = await channel.send(embed=embed, view=view)
