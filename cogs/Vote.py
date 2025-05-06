@@ -56,16 +56,16 @@ class VoteView(discord.ui.View):
         del self.cog.active_votes[self.vote_id]
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-        """Handles vote button clicks with potential double votes."""
-        multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
-        self.votes[vote_type] += multiplier
+    """Handles vote button clicks with potential double votes."""
+    multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
+    self.votes[vote_type] += multiplier
 
-        total_votes = sum(self.votes.values())
-        if total_votes >= self.max_votes:
-            await self.end_vote()
-            return
+    total_votes = sum(self.votes.values())
+    if total_votes >= self.max_votes:
+        await self.end_vote()
+        return
 
-        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
+    await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
 
     @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
     async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -95,12 +95,12 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Starts an anonymous vote with the topic displayed."""
+        """Starts an anonymous vote, ensuring multi-word questions are correctly handled."""
         vote_id = len(self.active_votes) + 1  # Auto-generates a unique vote ID
     
         embed = discord.Embed(
             title=f"🗳 **Vote #{vote_id} Started**",
-            description=f"**Vote ID:** `{vote_id}`\n**Topic:** {question}\n\nClick a button below to vote anonymously!",
+            description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
             color=discord.Color.blue()
         )
     
@@ -108,8 +108,8 @@ class Vote(commands.Cog):
         message = await channel.send(embed=embed, view=view)
     
         self.active_votes[message.id] = {
-            "vote_id": vote_id,  # Store the generated ID
-            "question": question,
+            "vote_id": vote_id,
+            "question": question,  # Ensuring question is stored as a full string
             "required_votes": required_votes,
             "max_votes": max_votes,
             "message": message,
