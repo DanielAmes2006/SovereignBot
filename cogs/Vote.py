@@ -95,7 +95,7 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-    """Starts an anonymous vote with the topic displayed."""
+        """Starts an anonymous vote with the topic displayed."""
         embed = discord.Embed(
             title="🗳 **Anonymous Vote Started**",
             description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
