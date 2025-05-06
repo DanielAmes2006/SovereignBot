@@ -95,36 +95,24 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Starts an anonymous vote with the topic displayed."""
-        embed = discord.Embed(
-            title="🗳 **Anonymous Vote Started**",
-            description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
-            color=discord.Color.blue()
-        )
+    """Starts an anonymous vote with the topic displayed."""
+    embed = discord.Embed(
+        title="🗳 **Anonymous Vote Started**",
+        description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
+        color=discord.Color.blue()
+    )
 
     view = VoteView(len(self.active_votes) + 1, question, required_votes, max_votes, self)
     message = await channel.send(embed=embed, view=view)
 
     self.active_votes[message.id] = {
-        "question": question,  # Ensuring question is stored correctly
+        "question": question,
         "required_votes": required_votes,
         "max_votes": max_votes,
         "message": message,
-        "view": view,
+        "view": view, 
         "end_time": datetime.datetime.utcnow() + datetime.timedelta(days=3)
     }
-
-    view = VoteView(len(self.active_votes) + 1, required_votes, max_votes, question, self)
-    message = await channel.send(embed=embed, view=view)
-
-    self.active_votes[message.id] = {
-        "question": question,
-        "required_votes": required_votes,
-         "max_votes": max_votes,
-         "message": message,
-           "view": view,  # Store the VoteView instance correctly
-          "end_time": datetime.datetime.utcnow() + datetime.timedelta(days=3)
-     }
 
     @app_commands.command(name="create_vote", description="Starts an anonymous vote using buttons")
     async def create_vote_slash(self, interaction: discord.Interaction, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
