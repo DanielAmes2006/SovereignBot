@@ -94,7 +94,7 @@ class Vote(commands.Cog):
         await interaction.response.send_message("⚠️ You don't have permission to create votes.", ephemeral=True)
         return False
 
-    async def start_vote(self, channel: discord.TextChannel, question: str, required_votes: int, max_votes: int) -> None:
+    async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
         """Core logic for starting an anonymous vote."""
         embed = discord.Embed(
             title="🗳 **Anonymous Vote Started**",
@@ -102,7 +102,7 @@ class Vote(commands.Cog):
             color=discord.Color.blue()
         )
 
-        view = VoteView(len(self.active_votes) + 1, question, required_votes, max_votes, self)
+        view = VoteView(len(self.active_votes) + 1, required_votes, max_votes, question, self)
         message = await channel.send(embed=embed, view=view)
 
         self.active_votes[message.id] = {
