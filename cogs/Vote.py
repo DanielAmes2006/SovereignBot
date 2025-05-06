@@ -118,13 +118,13 @@ class Vote(commands.Cog):
         }
 
     @app_commands.command(name="create_vote", description="Starts an anonymous vote using buttons")
-    async def create_vote_slash(self, interaction: discord.Interaction, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
+    async def create_vote_slash(self, interaction: discord.Interaction, channel: discord.TextChannel, required_votes: int, max_votes: int, *question: str) -> None:
         """Slash command version: Starts an anonymous vote"""
         if await self.check_permissions(interaction):
             await self.start_vote(channel, required_votes, max_votes, question)
     
     @commands.command(name="create_vote")
-    async def create_vote_text(self, ctx: commands.Context, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
+    async def create_vote_text(self, ctx: commands.Context, channel: discord.TextChannel, required_votes: int, max_votes: int, *question: str) -> None:
         """Text command version: Starts an anonymous vote"""
         await self.start_vote(channel, required_votes, max_votes, question)
 
