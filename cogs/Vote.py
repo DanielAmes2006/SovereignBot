@@ -42,25 +42,25 @@ class VoteView(discord.ui.View):
         self.double_vote_roles = set(load_double_vote_roles())  # Ensure roles are stored as a set for easy checking
 
    async def end_vote(self, timeout=False) -> None:
-    """Ends the vote and sends results."""
-    if self.vote_id not in self.cog.active_votes:
-        print(f"⚠️ Error: Vote ID {self.vote_id} not found in active_votes")
-        return  # Prevents KeyError
-
-    result_text = "⏳ **Vote ended due to timeout**" if timeout else "✅ **Vote concluded successfully**"
-    color = discord.Color.red() if timeout else discord.Color.green()
-
-    embed = discord.Embed(
-        title=f"🗳 **Vote #{self.vote_id} Ended**",
-        description=f"**Topic:** {self.question}\n\n✅ **Final Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
-        color=color
-    )
-
-    await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
-    del self.cog.active_votes[self.vote_id]  # Safely remove it after editing
+        """Ends the vote and sends results."""
+        if self.vote_id not in self.cog.active_votes:
+            print(f"⚠️ Error: Vote ID {self.vote_id} not found in active_votes")
+            return  # Prevents KeyError
+    
+        result_text = "⏳ **Vote ended due to timeout**" if timeout else "✅ **Vote concluded successfully**"
+        color = discord.Color.red() if timeout else discord.Color.green()
+    
+        embed = discord.Embed(
+            title=f"🗳 **Vote #{self.vote_id} Ended**",
+            description=f"**Topic:** {self.question}\n\n✅ **Final Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
+            color=color
+        )
 
         await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
-        del self.cog.active_votes[self.vote_id]
+        del self.cog.active_votes[self.vote_id]  # Safely remove it after editing
+    
+            await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
+            del self.cog.active_votes[self.vote_id]
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
         """Handles vote button clicks with potential double votes."""
