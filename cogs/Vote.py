@@ -47,7 +47,7 @@ class VoteView(discord.ui.View):
         color = discord.Color.red() if timeout else discord.Color.green()
 
         embed = discord.Embed(
-        title="🗳 **Vote Ended**",
+        title=f"🗳 **Vote #{self.vote_id} Ended**",
         description=f"**Topic:** {self.question}\n\n✅ **Final Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
         color=discord.Color.green()
     )
@@ -95,12 +95,12 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Starts an anonymous vote, auto-generating a vote ID."""
+        """Starts an anonymous vote with the topic displayed."""
         vote_id = len(self.active_votes) + 1  # Auto-generates a unique vote ID
     
         embed = discord.Embed(
             title=f"🗳 **Vote #{vote_id} Started**",
-            description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
+            description=f"**Vote ID:** `{vote_id}`\n**Topic:** {question}\n\nClick a button below to vote anonymously!",
             color=discord.Color.blue()
         )
     
