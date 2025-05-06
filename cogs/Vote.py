@@ -56,16 +56,16 @@ class VoteView(discord.ui.View):
         del self.cog.active_votes[self.vote_id]
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-    """Handles vote button clicks with potential double votes."""
-    multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
-    self.votes[vote_type] += multiplier
-
-    total_votes = sum(self.votes.values())
-    if total_votes >= self.max_votes:
-        await self.end_vote()
-        return
-
-    await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
+        """Handles vote button clicks with potential double votes."""
+        multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
+        self.votes[vote_type] += multiplier
+    
+        total_votes = sum(self.votes.values())
+        if total_votes >= self.max_votes:
+            await self.end_vote()
+            return
+    
+        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
 
     @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
     async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
