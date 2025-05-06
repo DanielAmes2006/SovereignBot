@@ -164,5 +164,32 @@ class Vote(commands.Cog):
         """Text command version: Lists active anonymous votes"""
         await self.list_active_votes(ctx.channel)
 
+@app_commands.command(name="add_vote_role", description="Adds a role that can start votes")
+async def add_vote_role_slash(self, interaction: discord.Interaction, role: discord.Role):
+    """Adds a role to the allowed voting roles list."""
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("⛔ You need **Administrator** permissions to modify voting roles.", ephemeral=True)
+        return
+
+    allowed_roles = load_vote_roles()
+    if role.id not in allowed_roles:
+        allowed_roles.append(role.id)
+        save_vote_roles(allowed_roles)
+        await interaction.response.send_message(f"✅ `{role.name}` can now start votes.")
+    else:
+        await interaction.response.send_message(f"⚠️ `{role.name}` is already allowed to start votes.")
+
+@commands.command(name="add_vote_role")
+@commands.has_permissions(administrator=True)
+async def add_vote_role_text(self, ctx, role: discord.Role):
+    """Text command version of adding a vote role"""
+    allowed_roles = load_vote_roles()
+    if role.id not in allowed_roles:
+        allowed_roles.append(role.id)
+        save_vote_roles(allowed_roles)
+        await ctx.send(f"✅ `{role.name}` can now start votes.")
+    else:
+        await ctx.send(f"⚠️ `{role.name}` is already allowed to start votes.")
+
 async def setup(bot):
     await bot.add_cog(Vote(bot))
