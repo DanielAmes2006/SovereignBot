@@ -95,22 +95,25 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Starts an anonymous vote with the topic displayed."""
+        """Starts an anonymous vote, auto-generating a vote ID."""
+        vote_id = len(self.active_votes) + 1  # Auto-generates a unique vote ID
+    
         embed = discord.Embed(
-            title="🗳 **Anonymous Vote Started**",
+            title=f"🗳 **Vote #{vote_id} Started**",
             description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
             color=discord.Color.blue()
         )
     
-        view = VoteView(len(self.active_votes) + 1, question, required_votes, max_votes, self)
+        view = VoteView(vote_id, question, required_votes, max_votes, self)
         message = await channel.send(embed=embed, view=view)
     
         self.active_votes[message.id] = {
+            "vote_id": vote_id,  # Store the generated ID
             "question": question,
             "required_votes": required_votes,
             "max_votes": max_votes,
             "message": message,
-            "view": view, 
+            "view": view,
             "end_time": datetime.datetime.utcnow() + datetime.timedelta(days=3)
         }
 
@@ -118,12 +121,12 @@ class Vote(commands.Cog):
     async def create_vote_slash(self, interaction: discord.Interaction, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
         """Slash command version: Starts an anonymous vote"""
         if await self.check_permissions(interaction):
-            await self.start_vote(channel, question, required_votes, max_votes)
-
+            await self.start_vote(channel, required_votes, max_votes, question)
+    
     @commands.command(name="create_vote")
     async def create_vote_text(self, ctx: commands.Context, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
         """Text command version: Starts an anonymous vote"""
-        await self.start_vote(channel, question, required_votes, max_votes)
+        await self.start_vote(channel, required_votes, max_votes, question)
 
     @app_commands.command(name="add_vote_role", description="Adds a role that can start votes")
     async def add_vote_role_slash(self, interaction: discord.Interaction, role: discord.Role) -> None:
