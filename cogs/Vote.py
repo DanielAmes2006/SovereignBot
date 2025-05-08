@@ -29,7 +29,7 @@ def load_double_vote_roles():
     return []
 
 class VoteView(discord.ui.View):
-    """Handles anonymous voting via Discord buttons."""
+    """Handles anonymous voting via Discord buttons with a single-vote restriction."""
 
     def __init__(self, vote_id: int, question: str, required_votes: int, max_votes: int, cog):
         super().__init__(timeout=None)  # No timeout to allow long-term votes
@@ -37,9 +37,27 @@ class VoteView(discord.ui.View):
         self.question = question
         self.required_votes = required_votes
         self.max_votes = max_votes
-        self.cog = cog  # Reference to the Vote cog for tracking votes
+        self.cog = cog
         self.votes = {"Aye": 0, "Nay": 0, "Abstain": 0}
-        self.double_vote_roles = set(load_double_vote_roles())  # Ensure roles are stored as a set for easy checking
+        self.user_votes = set()  # Track users who have already voted
+        self.double_vote_roles = set(load_double_vote_roles())
+
+    async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
+        """Handles vote button clicks with single vote restriction."""
+        if interaction.user.id in self.user_votes:
+            await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
+            return  # Prevents multiple votes
+
+        multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
+        self.votes[vote_type] += multiplier
+        self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
+
+        total_votes = sum(self.votes.values())
+        if total_votes >= self.max_votes:
+            await self.end_vote()
+            return
+
+        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
 
     async def end_vote(self, timeout=False) -> None:
         """Ends the vote and sends results."""
