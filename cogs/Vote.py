@@ -30,9 +30,9 @@ def load_double_vote_roles():
 
 class VoteView(discord.ui.View):
     """Handles anonymous voting via Discord buttons with a single-vote restriction."""
-    
+
     def __init__(self, vote_id: int, question: str, required_votes: int, max_votes: int, cog):
-        super().__init__(timeout=None)  # No timeout to allow long-term votes
+        super().__init__(timeout=None)  # Prevents buttons from disappearing
         self.vote_id = vote_id
         self.question = question
         self.required_votes = required_votes
@@ -64,15 +64,15 @@ class VoteView(discord.ui.View):
         del self.cog.active_votes[self.vote_id]  # Remove vote after completion
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-        """Handles vote button clicks and updates tally dynamically."""
+        """Handles vote button clicks with single vote restriction and updates tally dynamically."""
         if interaction.user.id in self.user_votes:
             await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
-            return  # Prevents multiple votes
-    
+            return  # Stops the user from voting twice
+
         multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
         self.votes[vote_type] += multiplier
         self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
-    
+
         # Update embed with live vote tally
         embed = discord.Embed(
             title=f"🗳 **Vote #{self.vote_id} Ongoing**",
@@ -85,21 +85,21 @@ class VoteView(discord.ui.View):
 
         vote_data = self.cog.active_votes.get(self.vote_id)
         if vote_data:
-            await vote_data["message"].edit(embed=embed)  # Force update on vote message
-    
+            await vote_data["message"].edit(embed=embed, view=self)  # Force update on vote message with buttons intact
+
         await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
-    
-        @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
-        async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-            await self.handle_vote(interaction, "Aye")
-    
-        @discord.ui.button(label="Nay 👎", style=discord.ButtonStyle.danger)
-        async def nay_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-            await self.handle_vote(interaction, "Nay")
-    
-        @discord.ui.button(label="Abstain 🟡", style=discord.ButtonStyle.secondary)
-        async def abstain_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-            await self.handle_vote(interaction, "Abstain")
+
+    @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
+    async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self.handle_vote(interaction, "Aye")
+
+    @discord.ui.button(label="Nay 👎", style=discord.ButtonStyle.danger)
+    async def nay_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self.handle_vote(interaction, "Nay")
+
+    @discord.ui.button(label="Abstain 🟡", style=discord.ButtonStyle.secondary)
+    async def abstain_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self.handle_vote(interaction, "Abstain")
 
 class Vote(commands.Cog):
     """Handles automated anonymous voting systems with button-based functionality."""
