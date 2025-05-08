@@ -30,7 +30,7 @@ def load_double_vote_roles():
 
 class VoteView(discord.ui.View):
     """Handles anonymous voting via Discord buttons with a single-vote restriction."""
-
+    
     def __init__(self, vote_id: int, question: str, required_votes: int, max_votes: int, cog):
         super().__init__(timeout=None)  # No timeout to allow long-term votes
         self.vote_id = vote_id
@@ -64,24 +64,30 @@ class VoteView(discord.ui.View):
         del self.cog.active_votes[self.vote_id]  # Remove vote after completion
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-        """Handles vote button clicks with single vote restriction and updates tally dynamically."""
-        if interaction.user.id in self.user_votes:
-            await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
-            return  # Prevents multiple votes
+    """Handles vote button clicks and updates tally dynamically."""
+    if interaction.user.id in self.user_votes:
+        await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
+        return  # Prevents multiple votes
 
-        multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
-        self.votes[vote_type] += multiplier
-        self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
+    multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
+    self.votes[vote_type] += multiplier
+    self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
 
-        # Update embed with live vote tally
-        embed = discord.Embed(
-            title=f"🗳 **Vote #{self.vote_id} Ongoing**",
-            description=f"**Topic:** {self.question}\n\nCurrent tally:\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
-            color=discord.Color.blue()
-        )
+    # Update embed with live vote tally
+    embed = discord.Embed(
+        title=f"🗳 **Vote #{self.vote_id} Ongoing**",
+        description=f"**Topic:** {self.question}\n\nCurrent tally:\n"
+                    f"👍 Aye: {self.votes['Aye']}\n"
+                    f"👎 Nay: {self.votes['Nay']}\n"
+                    f"🟡 Abstain: {self.votes['Abstain']}",
+        color=discord.Color.blue()
+    )
 
-        await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed)
-        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
+    vote_data = self.cog.active_votes.get(self.vote_id)
+    if vote_data:
+        await vote_data["message"].edit(embed=embed)  # Force update on vote message
+
+    await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
 
     @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
     async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
