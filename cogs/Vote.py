@@ -41,38 +41,39 @@ class VoteView(discord.ui.View):
         self.votes = {"Aye": 0, "Nay": 0, "Abstain": 0}
         self.double_vote_roles = set(load_double_vote_roles())  # Ensure roles are stored as a set for easy checking
 
-   async def end_vote(self, timeout=False) -> None:
+    async def end_vote(self, timeout=False) -> None:
         """Ends the vote and sends results."""
         if self.vote_id not in self.cog.active_votes:
             print(f"⚠️ Error: Vote ID {self.vote_id} not found in active_votes")
             return  # Prevents KeyError
-    
+
+        vote_data = self.cog.active_votes[self.vote_id]
+        message = vote_data["message"]
+
         result_text = "⏳ **Vote ended due to timeout**" if timeout else "✅ **Vote concluded successfully**"
         color = discord.Color.red() if timeout else discord.Color.green()
-    
+
         embed = discord.Embed(
             title=f"🗳 **Vote #{self.vote_id} Ended**",
             description=f"**Topic:** {self.question}\n\n✅ **Final Results:**\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
             color=color
         )
 
-        await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
-        del self.cog.active_votes[self.vote_id]  # Safely remove it after editing
-    
-            await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed, view=None)
-            del self.cog.active_votes[self.vote_id]
+        await message.edit(embed=embed, view=None)
+        del self.cog.active_votes[self.vote_id]  # Remove vote after completion
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
         """Handles vote button clicks with potential double votes."""
         multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
         self.votes[vote_type] += multiplier
-    
+
         total_votes = sum(self.votes.values())
         if total_votes >= self.max_votes:
             await self.end_vote()
             return
-    
-        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
+
+        await interaction.response.defer()  # Prevents interaction failures
+        await interaction.followup.send(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)  # Ensure response works
 
     @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
     async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -104,19 +105,18 @@ class Vote(commands.Cog):
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
         """Starts an anonymous vote, ensuring multi-word questions are correctly handled."""
         vote_id = len(self.active_votes) + 1  # Auto-generates a unique vote ID
-    
+
         embed = discord.Embed(
             title=f"🗳 **Vote #{vote_id} Started**",
             description=f"**Topic:** {question}\n\nClick a button below to vote anonymously!",
             color=discord.Color.blue()
         )
-    
+
         view = VoteView(vote_id, question, required_votes, max_votes, self)
         message = await channel.send(embed=embed, view=view)
-    
-        self.active_votes[message.id] = {
-            "vote_id": vote_id,
-            "question": question,  # Ensuring question is stored as a full string
+
+        self.active_votes[vote_id] = {  # Use vote_id as key instead of message.id
+            "question": question,
             "required_votes": required_votes,
             "max_votes": max_votes,
             "message": message,
@@ -129,34 +129,12 @@ class Vote(commands.Cog):
         """Slash command version: Starts an anonymous vote"""
         if await self.check_permissions(interaction):
             await self.start_vote(channel, required_votes, max_votes, question)
-    
+
     @commands.command(name="create_vote")
     async def create_vote_text(self, ctx: commands.Context, channel: discord.TextChannel, required_votes: int, max_votes: int, *question: str) -> None:
         """Text command version: Starts an anonymous vote"""
+        question = " ".join(question)  # Convert tuple to string for full question support
         await self.start_vote(channel, required_votes, max_votes, question)
-
-    @app_commands.command(name="add_vote_role", description="Adds a role that can start votes")
-    async def add_vote_role_slash(self, interaction: discord.Interaction, role: discord.Role) -> None:
-        """Adds a role to the allowed voting roles list."""
-        allowed_roles = load_vote_roles()
-        if role.id not in allowed_roles:
-            allowed_roles.append(role.id)
-            save_vote_roles(allowed_roles)
-            await interaction.response.send_message(f"✅ `{role.name}` can now start votes.")
-        else:
-            await interaction.response.send_message(f"⚠️ `{role.name}` is already allowed to start votes.")
-
-    @commands.command(name="add_vote_role")
-    @commands.has_permissions(administrator=True)
-    async def add_vote_role_text(self, ctx: commands.Context, role: discord.Role) -> None:
-        """Text command version of adding a vote role"""
-        allowed_roles = load_vote_roles()
-        if role.id not in allowed_roles:
-            allowed_roles.append(role.id)
-            save_vote_roles(allowed_roles)
-            await ctx.send(f"✅ `{role.name}` can now start votes.")
-        else:
-            await ctx.send(f"⚠️ `{role.name}` is already allowed to start votes.")
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Vote(bot))
