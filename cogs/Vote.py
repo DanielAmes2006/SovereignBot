@@ -42,23 +42,6 @@ class VoteView(discord.ui.View):
         self.user_votes = set()  # Track users who have already voted
         self.double_vote_roles = set(load_double_vote_roles())
 
-    async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-        """Handles vote button clicks with single vote restriction."""
-        if interaction.user.id in self.user_votes:
-            await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
-            return  # Prevents multiple votes
-
-        multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
-        self.votes[vote_type] += multiplier
-        self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
-
-        total_votes = sum(self.votes.values())
-        if total_votes >= self.max_votes:
-            await self.end_vote()
-            return
-
-        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
-
     async def end_vote(self, timeout=False) -> None:
         """Ends the vote and sends results."""
         if self.vote_id not in self.cog.active_votes:
@@ -81,17 +64,24 @@ class VoteView(discord.ui.View):
         del self.cog.active_votes[self.vote_id]  # Remove vote after completion
 
     async def handle_vote(self, interaction: discord.Interaction, vote_type: str) -> None:
-        """Handles vote button clicks with potential double votes."""
+        """Handles vote button clicks with single vote restriction and updates tally dynamically."""
+        if interaction.user.id in self.user_votes:
+            await interaction.response.send_message("⚠️ You have already voted in this poll.", ephemeral=True)
+            return  # Prevents multiple votes
+
         multiplier = 2 if any(role.id in self.double_vote_roles for role in interaction.user.roles) else 1
         self.votes[vote_type] += multiplier
+        self.user_votes.add(interaction.user.id)  # Store user ID to prevent multi-voting
 
-        total_votes = sum(self.votes.values())
-        if total_votes >= self.max_votes:
-            await self.end_vote()
-            return
+        # Update embed with live vote tally
+        embed = discord.Embed(
+            title=f"🗳 **Vote #{self.vote_id} Ongoing**",
+            description=f"**Topic:** {self.question}\n\nCurrent tally:\n👍 Aye: {self.votes['Aye']}\n👎 Nay: {self.votes['Nay']}\n🟡 Abstain: {self.votes['Abstain']}",
+            color=discord.Color.blue()
+        )
 
-        await interaction.response.defer()  # Prevents interaction failures
-        await interaction.followup.send(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)  # Ensure response works
+        await self.cog.active_votes[self.vote_id]["message"].edit(embed=embed)
+        await interaction.response.send_message(f"✅ You voted **{vote_type}** anonymously!", ephemeral=True)
 
     @discord.ui.button(label="Aye 👍", style=discord.ButtonStyle.success)
     async def aye_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -121,7 +111,7 @@ class Vote(commands.Cog):
         return False
 
     async def start_vote(self, channel: discord.TextChannel, required_votes: int, max_votes: int, question: str) -> None:
-        """Starts an anonymous vote, ensuring multi-word questions are correctly handled."""
+        """Starts an anonymous vote with live tally updates."""
         vote_id = len(self.active_votes) + 1  # Auto-generates a unique vote ID
 
         embed = discord.Embed(
