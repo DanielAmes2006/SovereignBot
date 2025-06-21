@@ -5,6 +5,8 @@ from discord import app_commands
 class AnnouncementCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # List of allowed user IDs (replace with actual IDs)
+        self.allowed_users = {419903852246990849, 805991845481939014, 832223616640483378}
 
     @app_commands.command(
         name="announce",
@@ -20,24 +22,21 @@ class AnnouncementCog(commands.Cog):
         channel: discord.TextChannel,
         message: str
     ):
-        # Check if the user has Administrator permissions
-        if not interaction.user.guild_permissions.administrator:
+        # Check if the user is in the allowed list
+        if interaction.user.id not in self.allowed_users:
             await interaction.response.send_message(
-                "⛔ You need **Administrator** permissions to use this command.",
+                "⛔ You do not have permission to use this command.",
                 ephemeral=True
             )
             return
 
         try:
-            # Send the message to the specified channel
             await channel.send(f"📢 **Announcement**: {message}")
-            # Notify the user the announcement has been sent
             await interaction.response.send_message(
                 f"✅ Announcement sent to {channel.mention}",
                 ephemeral=True
             )
         except Exception as e:
-            # Handle errors
             await interaction.response.send_message(
                 f"⚠️ Failed to send announcement: {str(e)}",
                 ephemeral=True
